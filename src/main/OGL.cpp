@@ -1,13 +1,15 @@
 // Header files
 #include <windows.h>
-#include "OGL.h"
+#include "..\lib\OGL.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 // OpenGL Header Files
 #include <GL/glew.h>	// This must be above GL.h
 #include <GL/gl.h>
-#include "vmath.h"
+#include "..\lib\vmath.h"
+#include "..\lib\Sphere.h"
 using namespace vmath; // only works in cpp
 
 
@@ -17,6 +19,7 @@ using namespace vmath; // only works in cpp
 // OpenGL Libraries
 #pragma comment(lib, "glew32.lib")
 #pragma comment(lib, "openGL32.lib")
+#pragma comment(lib, "Sphere.lib")
 
 // Global Function Declarations / Signatures
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
@@ -28,6 +31,8 @@ HGLRC ghrc = NULL; // HGLRC -> Handle to opengl rendering context
 
 BOOL gbFullscreen = FALSE;
 FILE* gpFile = NULL;
+FILE *vshaderFile = NULL;
+FILE *fshaderFile = NULL;
 BOOL gbActiveWindow = FALSE;
 BOOL bDone = FALSE;
 int iRetVal = 0;
@@ -40,10 +45,29 @@ enum
 	AMC_ATTRIBUTE_COLOR,
 	AMC_ATTRIBUTE_NORMAL,
 	AMC_ATTRIBUTE_TEXTURE0
+	// VDG_ATTRIBUTE_NORMAL,
+	// VDG_ATTRIBUTE_VERTEX
 };
-GLuint vao;
-GLuint vbo;
-GLuint mvpMatrixUniform;
+
+GLuint gVao_sphere;
+GLuint gVbo_sphere_normal;
+GLuint gVbo_sphere_element;
+GLuint gVbo_sphere_position;
+GLuint gVbo_sphere_texture;
+GLuint modelMatrixUniform;
+GLuint viewMatrixUniform;
+GLuint projectionMatrixUniform;
+GLuint texture2DSampler;
+
+float sphere_vertices[1146];
+float sphere_normals[1146];
+float sphere_textures[764];
+unsigned short sphere_elements[2280];
+
+int gNumVertices;
+int gNumElements;
+
+GLuint texture_spheres;
 
 mat4 perspectiveProjectionMatrix;
 
@@ -307,6 +331,7 @@ int initialise(void)
 	void resize(int, int);
 	void printGLinfo(void);
 	void uninitialise(void);
+	GLchar *LoadShader(FILE *, char *);
 
 	// Variable Declarations
 
@@ -368,19 +393,22 @@ int initialise(void)
 
 	// print OpenGL info
 
-	printGLinfo();
+	// printGLinfo();
 
 	// vertex shader - check where to put this
-	const GLchar* vertexShaderSourceCode = 
-	"#version 450 core" \
-	"\n" \
-	"in vec4 a_position;" \
-	"uniform mat4 u_mvpMatrix;" \
-	"void main(void)" \
-	"{" \
-	"gl_Position = u_mvpMatrix * a_position;" \
-	"}";
-
+	const GLchar *vertexShaderSourceCode = LoadShader(vshaderFile, "src\\main\\vertexshader.vert");
+	// const GLchar *vertexShaderSourceCode =
+	// "#version 330 core\n" \
+	// "\n" \
+	// "in vec4 a_position;" \
+	// "uniform mat4 u_modelMatrix;" \
+	// "uniform mat4 u_viewMatrix;" \
+	// "uniform mat4 u_projectionMatrix;" \
+	// "void main(void)" \
+	// "{" \
+	// 	"gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * a_position;" \
+	// "}";
+	
 	GLuint vertexShaderObject = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShaderObject, 1, (const GLchar**)&vertexShaderSourceCode, NULL);
 	glCompileShader(vertexShaderObject);
@@ -409,14 +437,16 @@ int initialise(void)
 
 	// fragment shader
 
-	const GLchar* fragmentShaderSourceCode = 
-	"#version 450 core" \
-	"\n" \
-	"out vec4 FragColor;" \
-	"void main(void)" \
-	"{" \
-	"FragColor = vec4(1.0, 1.0, 1.0, 1.0);" \
-	"}";
+	const GLchar* fragmentShaderSourceCode = LoadShader(fshaderFile, "src\\main\\fragmentshader.frag");
+	// const GLchar* fragmentShaderSourceCode =
+	// "#version 330 core" \
+	// "\n" \
+	// "out vec4 FragColor;" \
+	// "void main(void)" \
+	// "{" \
+    // "FragColor = vec4(1.0, 1.0, 1.0, 1.0);" \
+	// "}";
+
 
 	GLuint fragmentShaderObject = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShaderObject, 1, (const GLchar**)&fragmentShaderSourceCode, NULL);
@@ -448,7 +478,6 @@ int initialise(void)
 	}
 
 	// shader program object
-
 	shaderProgramObject = glCreateProgram();
 	glAttachShader(shaderProgramObject, vertexShaderObject);
 	glAttachShader(shaderProgramObject, fragmentShaderObject);
@@ -479,27 +508,48 @@ int initialise(void)
 		}
 	}
 
-	mvpMatrixUniform = glGetUniformLocation(shaderProgramObject, "u_mvpMatrix");
+	modelMatrixUniform = glGetUniformLocation(shaderProgramObject, "u_modelMatrix");
+	viewMatrixUniform = glGetUniformLocation(shaderProgramObject, "u_viewMatrix");
+	projectionMatrixUniform = glGetUniformLocation(shaderProgramObject, "u_projectionMatrix");
 
 	// declaration of vertex data arrays
-	const GLfloat triangleVertices[] = 
-	{
-		0.0f, 1.0f, 0.0f,
-		-1.0f, -1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f
-	};
+	getSphereVertexData(sphere_vertices, sphere_normals, sphere_textures, sphere_elements);
+    gNumVertices = getNumberOfSphereVertices();
+    gNumElements = getNumberOfSphereElements();
+
 
 	// vao and vbo related code
-	glGenVertexArrays(1, &vao);
-	glBindVertexArray(vao);
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(triangleVertices), triangleVertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-	glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+	// vao
+    glGenVertexArrays(1, &gVao_sphere);
+    glBindVertexArray(gVao_sphere);
 
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
+    // position vbo
+    glGenBuffers(1, &gVbo_sphere_position);
+    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // normal vbo
+    glGenBuffers(1, &gVbo_sphere_normal);
+    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // element vbo
+    glGenBuffers(1, &gVbo_sphere_element);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 
 	// Here starts openGL code
@@ -512,7 +562,7 @@ int initialise(void)
 	// glShadeModel(GL_SMOOTH);
 	// glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);
 
-
+	// loadGLtexture();
 	// Clear the screen using Blue Color
 
 	glClearColor(0.0f, 0.0f, 1.0f, 1.0f); // this function only tells the program what color to use to clear the screen. The actual clearing DOES NOT happen here
@@ -521,9 +571,7 @@ int initialise(void)
 
 	resize(WINWIDTH, WINHEIGHT);
 
-	
 	return 0;
-
 }
 
 void printGLinfo(void)
@@ -572,26 +620,35 @@ void display(void)
 	
 	// Use the shader program object
 	glUseProgram(shaderProgramObject);
-	
+
 	// transformations
 	mat4 translationMatrix = mat4::identity();
-	mat4 modelViewMatrix = mat4::identity();
-	mat4 modelViewProjectionMatrix = mat4::identity();
+	mat4 modelMatrix = mat4::identity();
+	mat4 viewMatrix = mat4::identity();
+	// mat4 modelViewProjectionMatrix = mat4::identity();
 
-	translationMatrix =vmath::translate(0.0f, 0.0f, -5.0f);
-	modelViewMatrix = translationMatrix;
+	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
+	modelMatrix = translationMatrix;
 
-	modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
-	glUniformMatrix4fv(mvpMatrixUniform, 1, GL_FALSE, modelViewProjectionMatrix);
+	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
+	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
 	
-	glBindVertexArray(vao);
+	
+	// Provided You Already Had Done Matrices Related Task Up Till Here
 
+    // *** bind vao ***
+    glBindVertexArray(gVao_sphere);
 
-	// here there be dragons (drawing code)
+    // *** draw, either by glDrawTriangles() or glDrawArrays() or glDrawElements()
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
+    glDrawElements(GL_TRIANGLES, gNumElements, GL_UNSIGNED_SHORT, 0);
 
-	glDrawArrays(GL_TRIANGLES, 0, 3);
+    // *** unbind vao ***
+    glBindVertexArray(0);
 
-	glBindVertexArray(0);
+    // Do Usual Stuff Here Onwards
 
 	// unuse the shader program object
 	glUseProgram(0);
@@ -615,19 +672,31 @@ void uninitialise(void)
 	}
 
 	// deletion and uninitialisation of vbo
-
-	if (vbo)
+	if (gVbo_sphere_texture)
 	{
-		glDeleteBuffers(1, &vbo);
-		vbo = 0;
+		glDeleteTextures(1, &gVbo_sphere_texture);
+		gVbo_sphere_texture = 0;
+	}
+
+
+	if (gVbo_sphere_element)
+	{
+		glDeleteBuffers(1, &gVbo_sphere_element);
+		gVbo_sphere_element = 0;
+	}
+
+	if (gVbo_sphere_normal)
+	{
+		glDeleteBuffers(1, &gVbo_sphere_normal);
+		gVbo_sphere_normal = 0;
 	}
 
 	// deletion and uninitiaisaion of vao
 
-	if (vao)
+	if (gVao_sphere)
 	{
-		glDeleteVertexArrays(1, &vao);
-		vao = 0;
+		glDeleteVertexArrays(1, &gVao_sphere);
+		gVao_sphere = 0;
 	}
 
 	// shader uninitialisation
@@ -685,6 +754,99 @@ void uninitialise(void)
 		fclose(gpFile);
 		gpFile = NULL;
 	}
+}
+
+BOOL loadGLtexture(GLuint *texture, TCHAR imageResourceID[])
+{
+	// Variable declarations
+	HBITMAP hbitmap=NULL;
+
+	BITMAP bmp;
+	BOOL bResult=FALSE;
+
+	// code
+	hbitmap = (HBITMAP)LoadImage(GetModuleHandle(NULL), imageResourceID, IMAGE_BITMAP,0, 0, LR_CREATEDIBSECTION);
+
+	if (hbitmap)
+	{
+		bResult = TRUE;
+		GetObject(hbitmap, sizeof(BITMAP), &bmp);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); /// for better performance
+
+		glGenTextures(1, texture);
+		glBindTexture(GL_TEXTURE_2D, *texture);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		//mipmapping
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+		// create the texture
+
+		// gluBuild2DMipmaps(GL_TEXTURE_2D, 3, bmp.bmWidth, bmp.bmHeight, GL_BGR_EXT, GL_UNSIGNED_BYTE, bmp.bmBits);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, bmp.bmWidth, bmp.bmHeight, 0, GL_BGR, GL_UNSIGNED_BYTE, bmp.bmBits); // TARGET, MIPMAPLEVEL, opengl image format, image width, image height, border width, our image format, bytes
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		DeleteObject(hbitmap);
+	}
+
+	return bResult;
+}
+
+
+
+GLchar *LoadShader(FILE *shaderFile, char *shaderFileName)
+{
+	MessageBox(ghwnd, TEXT("ENTERED LOAD_SHADER"), TEXT("HELLO!"), MB_OK);
+    long fileLength;
+
+    if (fopen_s(&shaderFile, shaderFileName, "r") != 0)
+    {
+        fprintf(gpFile, "%s could not be read\n", shaderFileName);
+		MessageBox(ghwnd, TEXT("COULD NOT BE READ"), TEXT("HELLO!"), MB_OK);
+    }
+    else
+    {
+        fprintf(gpFile, "%s read successfully\n", shaderFileName);
+		MessageBox(ghwnd, TEXT("READ SUCCESSFULLY"), TEXT("HELLO!"), MB_OK);
+    }
+
+	MessageBox(ghwnd, TEXT("READ SHADER FILE"), TEXT("HELLO!"), MB_OK);
+
+    // Get the file length
+    fseek(shaderFile, 0, SEEK_END);
+	MessageBox(ghwnd, TEXT("SEEK END DONE"), TEXT("HELLO!"), MB_OK);
+    fileLength = ftell(shaderFile);
+	MessageBox(ghwnd, TEXT("TELL DONE"), TEXT("HELLO!"), MB_OK);
+    fseek(shaderFile, 0, SEEK_SET);
+	MessageBox(ghwnd, TEXT("LENGTH DONE"), TEXT("HELLO!"), MB_OK);
+
+	MessageBox(ghwnd, TEXT("GOT FILE LENGTH"), TEXT("HELLO!"), MB_OK);
+
+    // allocate memory for buffer
+    GLchar *shaderSourceCode = (char *)malloc(fileLength + 1);
+
+    if (shaderSourceCode == NULL)
+    {
+        fprintf(gpFile, "Error allocating memory for vertex shader source code\n");
+        fclose(shaderFile);
+        return "Error";
+    }
+
+    // read the file into the buffer
+    fread(shaderSourceCode, fileLength, 1, shaderFile);
+
+    shaderSourceCode[fileLength] = '\0';
+
+    // close the file
+    fclose(shaderFile);
+
+    return shaderSourceCode;
+    
 }
 
 

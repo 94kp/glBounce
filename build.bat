@@ -1,9 +1,11 @@
 cls
-DEL OGL.exe
-DEL OGL.obj
-DEL OGL.res
-cl.exe /c /EHsc /I C:\glew\include OGL.cpp
-rc.exe OGL.rc
-link.exe OGL.obj OGL.res /LIBPATH:C:\glew\lib\Release\x64 gdi32.lib user32.lib /SUBSYSTEM:WINDOWS
-OGL.exe
+cd %~dp0
+DEL build\outputs\OGL.exe
+DEL build\intermediates\OGL.obj
+DEL build\intermediates\OGL.res
+cl.exe /Fobuild\intermediates\  /c /EHsc /I C:\glew\include src\main\OGL.cpp
+rc.exe /fobuild\intermediates\OGL.res src\res\OGL.rc 
+link.exe /OUT:build\outputs\OGL.exe build\intermediates\OGL.obj build\intermediates\OGL.res /LIBPATH:C:\glew\lib\Release\x64 src\lib\Sphere.lib gdi32.lib user32.lib /SUBSYSTEM:WINDOWS
+
+build\outputs\OGL.exe
 
