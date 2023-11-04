@@ -3,6 +3,7 @@
 #include "..\lib\OGL.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 // OpenGL Header Files
 #include <GL/glew.h>	// This must be above GL.h
@@ -30,6 +31,8 @@ HGLRC ghrc = NULL; // HGLRC -> Handle to opengl rendering context
 
 BOOL gbFullscreen = FALSE;
 FILE* gpFile = NULL;
+FILE *vshaderFile = NULL;
+FILE *fshaderFile = NULL;
 BOOL gbActiveWindow = FALSE;
 BOOL bDone = FALSE;
 int iRetVal = 0;
@@ -328,6 +331,7 @@ int initialise(void)
 	void resize(int, int);
 	void printGLinfo(void);
 	void uninitialise(void);
+	GLchar *LoadShader(FILE *, char *);
 
 	// Variable Declarations
 
@@ -389,21 +393,22 @@ int initialise(void)
 
 	// print OpenGL info
 
-	printGLinfo();
+	// printGLinfo();
 
 	// vertex shader - check where to put this
-	const GLchar* vertexShaderSourceCode = 
-	"#version 330 core" \
-	"\n" \
-	"in vec4 a_position;" \
-	"uniform mat4 u_modelMatrix;" \
-	"uniform mat4 u_viewMatrix;" \
-	"uniform mat4 u_projectionMatrix;" \
-	"void main(void)" \
-	"{" \
-	"gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * a_position;" \
-	"}";
-
+	const GLchar *vertexShaderSourceCode = LoadShader(vshaderFile, "src\\main\\vertexshader.vert");
+	// const GLchar *vertexShaderSourceCode =
+	// "#version 330 core\n" \
+	// "\n" \
+	// "in vec4 a_position;" \
+	// "uniform mat4 u_modelMatrix;" \
+	// "uniform mat4 u_viewMatrix;" \
+	// "uniform mat4 u_projectionMatrix;" \
+	// "void main(void)" \
+	// "{" \
+	// 	"gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * a_position;" \
+	// "}";
+	
 	GLuint vertexShaderObject = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShaderObject, 1, (const GLchar**)&vertexShaderSourceCode, NULL);
 	glCompileShader(vertexShaderObject);
@@ -432,14 +437,16 @@ int initialise(void)
 
 	// fragment shader
 
-	const GLchar* fragmentShaderSourceCode = 
-	"#version 330 core" \
-	"\n" \
-	"out vec4 FragColor;" \
-	"void main(void)" \
-	"{" \
-	"FragColor = vec4(1.0, 1.0, 1.0, 1.0);" \
-	"}";
+	const GLchar* fragmentShaderSourceCode = LoadShader(fshaderFile, "src\\main\\fragmentshader.frag");
+	// const GLchar* fragmentShaderSourceCode =
+	// "#version 330 core" \
+	// "\n" \
+	// "out vec4 FragColor;" \
+	// "void main(void)" \
+	// "{" \
+    // "FragColor = vec4(1.0, 1.0, 1.0, 1.0);" \
+	// "}";
+
 
 	GLuint fragmentShaderObject = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShaderObject, 1, (const GLchar**)&fragmentShaderSourceCode, NULL);
@@ -791,6 +798,56 @@ BOOL loadGLtexture(GLuint *texture, TCHAR imageResourceID[])
 }
 
 
+
+GLchar *LoadShader(FILE *shaderFile, char *shaderFileName)
+{
+	MessageBox(ghwnd, TEXT("ENTERED LOAD_SHADER"), TEXT("HELLO!"), MB_OK);
+    long fileLength;
+
+    if (fopen_s(&shaderFile, shaderFileName, "r") != 0)
+    {
+        fprintf(gpFile, "%s could not be read\n", shaderFileName);
+		MessageBox(ghwnd, TEXT("COULD NOT BE READ"), TEXT("HELLO!"), MB_OK);
+    }
+    else
+    {
+        fprintf(gpFile, "%s read successfully\n", shaderFileName);
+		MessageBox(ghwnd, TEXT("READ SUCCESSFULLY"), TEXT("HELLO!"), MB_OK);
+    }
+
+	MessageBox(ghwnd, TEXT("READ SHADER FILE"), TEXT("HELLO!"), MB_OK);
+
+    // Get the file length
+    fseek(shaderFile, 0, SEEK_END);
+	MessageBox(ghwnd, TEXT("SEEK END DONE"), TEXT("HELLO!"), MB_OK);
+    fileLength = ftell(shaderFile);
+	MessageBox(ghwnd, TEXT("TELL DONE"), TEXT("HELLO!"), MB_OK);
+    fseek(shaderFile, 0, SEEK_SET);
+	MessageBox(ghwnd, TEXT("LENGTH DONE"), TEXT("HELLO!"), MB_OK);
+
+	MessageBox(ghwnd, TEXT("GOT FILE LENGTH"), TEXT("HELLO!"), MB_OK);
+
+    // allocate memory for buffer
+    GLchar *shaderSourceCode = (char *)malloc(fileLength + 1);
+
+    if (shaderSourceCode == NULL)
+    {
+        fprintf(gpFile, "Error allocating memory for vertex shader source code\n");
+        fclose(shaderFile);
+        return "Error";
+    }
+
+    // read the file into the buffer
+    fread(shaderSourceCode, fileLength, 1, shaderFile);
+
+    shaderSourceCode[fileLength] = '\0';
+
+    // close the file
+    fclose(shaderFile);
+
+    return shaderSourceCode;
+    
+}
 
 
 
