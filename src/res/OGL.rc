@@ -1,0 +1,2 @@
+#include "..\lib\OGL.h"
+MYICON ICON "..\\res\\images\\kp.ico"
