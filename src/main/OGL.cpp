@@ -15,6 +15,7 @@ using namespace vmath; // only works in cpp
 
 #define WINWIDTH 800
 #define WINHEIGHT 600
+#define MAX_STACK_SIZE 32
 
 // OpenGL Libraries
 #pragma comment(lib, "glew32.lib")
@@ -71,6 +72,14 @@ GLuint texture_spheres;
 
 mat4 perspectiveProjectionMatrix;
 
+
+struct stack
+{
+	int top;
+	mat4 items[MAX_STACK_SIZE];
+};
+
+struct stack s;
 
 // Entry Point Function
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int iCmdShow)
@@ -614,6 +623,8 @@ void resize(int width, int height)
 
 void display(void)
 {
+	void push(mat4);
+	mat4 pop();
 	// Code
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Actual coloring and clearing happens here
@@ -797,8 +808,6 @@ BOOL loadGLtexture(GLuint *texture, TCHAR imageResourceID[])
 	return bResult;
 }
 
-
-
 GLchar *LoadShader(FILE *shaderFile, char *shaderFileName)
 {
 	MessageBox(ghwnd, TEXT("ENTERED LOAD_SHADER"), TEXT("HELLO!"), MB_OK);
@@ -850,6 +859,21 @@ GLchar *LoadShader(FILE *shaderFile, char *shaderFileName)
 }
 
 
+// stack related functions
+
+void push(mat4 mostRecentMatrix)
+{   
+    s.items[++(s.top)] = mostRecentMatrix;
+}
+
+mat4 pop()
+{
+	mat4 retval = s.items[s.top];
+    s.items[s.top] = mat4::identity();
+    s.top--;
+
+	return retval;
+}
 
 
 
