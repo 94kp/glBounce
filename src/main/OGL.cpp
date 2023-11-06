@@ -340,6 +340,7 @@ int initialise(void)
 	void resize(int, int);
 	void printGLinfo(void);
 	void uninitialise(void);
+	void SphereVaoVbo(void);
 	GLchar *LoadShader(FILE *, char *);
 
 	// Variable Declarations
@@ -527,38 +528,39 @@ int initialise(void)
     gNumElements = getNumberOfSphereElements();
 
 
+	SphereVaoVbo();
 	// vao and vbo related code
-	// vao
-    glGenVertexArrays(1, &gVao_sphere);
-    glBindVertexArray(gVao_sphere);
+	// // vao
+    // glGenVertexArrays(1, &gVao_sphere);
+    // glBindVertexArray(gVao_sphere);
 
-    // position vbo
-    glGenBuffers(1, &gVbo_sphere_position);
-    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
+    // // position vbo
+    // glGenBuffers(1, &gVbo_sphere_position);
+    // glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    // glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
-    glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+    // glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    // normal vbo
-    glGenBuffers(1, &gVbo_sphere_normal);
-    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
+    // // normal vbo
+    // glGenBuffers(1, &gVbo_sphere_normal);
+    // glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    // glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
-    glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
+    // glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    // element vbo
-    glGenBuffers(1, &gVbo_sphere_element);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    // // element vbo
+    // glGenBuffers(1, &gVbo_sphere_element);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
+    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
+    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 
 	// Here starts openGL code
@@ -625,6 +627,7 @@ void display(void)
 {
 	void push(mat4);
 	mat4 pop();
+	void drawSphere();
 	// Code
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Actual coloring and clearing happens here
@@ -637,6 +640,8 @@ void display(void)
 	mat4 modelMatrix = mat4::identity();
 	mat4 viewMatrix = mat4::identity();
 	// mat4 modelViewProjectionMatrix = mat4::identity();
+
+	// drawSphere();
 
 	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
 	modelMatrix = translationMatrix;
@@ -671,6 +676,50 @@ void update(void)
 {
 	// Code
 }
+
+
+////////////////////////////////////////////////// Object VAO/VBO Functions ////////////////////////////////////////////////////
+
+void SphereVaoVbo(void)
+{
+	glGenVertexArrays(1, &gVao_sphere);
+    glBindVertexArray(gVao_sphere);
+
+    // position vbo
+    glGenBuffers(1, &gVbo_sphere_position);
+    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // normal vbo
+    glGenBuffers(1, &gVbo_sphere_normal);
+    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // element vbo
+    glGenBuffers(1, &gVbo_sphere_element);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+}
+
+void drawSphere()
+{
+
+}
+
 
 void uninitialise(void)
 {
@@ -810,31 +859,21 @@ BOOL loadGLtexture(GLuint *texture, TCHAR imageResourceID[])
 
 GLchar *LoadShader(FILE *shaderFile, char *shaderFileName)
 {
-	MessageBox(ghwnd, TEXT("ENTERED LOAD_SHADER"), TEXT("HELLO!"), MB_OK);
     long fileLength;
 
     if (fopen_s(&shaderFile, shaderFileName, "r") != 0)
     {
         fprintf(gpFile, "%s could not be read\n", shaderFileName);
-		MessageBox(ghwnd, TEXT("COULD NOT BE READ"), TEXT("HELLO!"), MB_OK);
     }
     else
     {
         fprintf(gpFile, "%s read successfully\n", shaderFileName);
-		MessageBox(ghwnd, TEXT("READ SUCCESSFULLY"), TEXT("HELLO!"), MB_OK);
     }
-
-	MessageBox(ghwnd, TEXT("READ SHADER FILE"), TEXT("HELLO!"), MB_OK);
 
     // Get the file length
     fseek(shaderFile, 0, SEEK_END);
-	MessageBox(ghwnd, TEXT("SEEK END DONE"), TEXT("HELLO!"), MB_OK);
     fileLength = ftell(shaderFile);
-	MessageBox(ghwnd, TEXT("TELL DONE"), TEXT("HELLO!"), MB_OK);
     fseek(shaderFile, 0, SEEK_SET);
-	MessageBox(ghwnd, TEXT("LENGTH DONE"), TEXT("HELLO!"), MB_OK);
-
-	MessageBox(ghwnd, TEXT("GOT FILE LENGTH"), TEXT("HELLO!"), MB_OK);
 
     // allocate memory for buffer
     GLchar *shaderSourceCode = (char *)malloc(fileLength + 1);
