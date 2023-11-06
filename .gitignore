@@ -1,0 +1,10 @@
+# ignore all log files
+*.txt
+
+#ignore executables
+*.exe
+
+#ignore build folder
+build/
+
+

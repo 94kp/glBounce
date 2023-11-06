@@ -1,5 +1,8 @@
 cls
 cd %~dp0
+MD build
+MD build\intermediates
+MD build\outputs
 DEL build\outputs\OGL.exe
 DEL build\intermediates\OGL.obj
 DEL build\intermediates\OGL.res

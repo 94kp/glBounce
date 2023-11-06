@@ -1,4 +1,0 @@
-Log File is successfully created
-src\main\vertexshader.vert read successfully
-src\main\fragmentshader.frag read successfully
-SuccessLogfile Successfully Closed
