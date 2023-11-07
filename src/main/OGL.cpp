@@ -479,7 +479,6 @@ int initialise(void)
 	glCompileShader(fragmentShaderObject);
 
 	// pre linked binding
-
 	
 	status = 0;
 	infoLogLength = 0;
@@ -610,10 +609,11 @@ void display(void)
 	void push(mat4);
 	mat4 pop();
 	void drawSphere();
+	void karan_code(mat4, mat4, mat4, mat4);
 	// Code
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Actual coloring and clearing happens here
-	
+
 	// Use the shader program object
 	glUseProgram(shaderProgramObject);
 
@@ -626,26 +626,11 @@ void display(void)
 
 	// drawSphere();
 
-	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
-	modelMatrix = translationMatrix;
-
-	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
-	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
-
-	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
-	
 	push(modelMatrix);
 
-	// Provided You Already Had Done Matrices Related Task Up Till Here
+		karan_code(translationMatrix, modelMatrix, viewMatrix, rotationMatrix);
 
-	rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
-	modelMatrix = pop() * rotationMatrix;
-	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
-	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
-
-	drawSphere();
+	pop();
 
 	// push(modelMatrix);
     // Do Usual Stuff Here Onwards
@@ -660,7 +645,6 @@ void update(void)
 {
 	// Code
 }
-
 
 ////////////////////////////////////////////////// Object VAO/VBO Functions ////////////////////////////////////////////////////
 
@@ -699,7 +683,36 @@ void SphereVaoVbo(void)
 
 }
 
-void drawSphere()
+void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 rotationMatrix)
+{
+	void push(mat4);
+	mat4 pop();
+	void drawSphere();
+
+	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
+	modelMatrix = translationMatrix;
+
+	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
+
+	push(modelMatrix);
+
+	// Provided You Already Had Done Matrices Related Task Up Till Here
+
+	rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
+	modelMatrix = pop() * rotationMatrix;
+	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	drawSphere();
+
+}
+
+void drawSphere(void)
 {
 	    // *** bind vao ***
     glBindVertexArray(gVao_sphere);
@@ -711,9 +724,6 @@ void drawSphere()
     // *** unbind vao ***
     glBindVertexArray(0);
 }
-
-
-
 
 void uninitialise(void)
 {
@@ -890,7 +900,6 @@ GLchar *LoadShader(FILE *shaderFile, char *shaderFileName)
     return shaderSourceCode;
     
 }
-
 
 // stack related functions
 
