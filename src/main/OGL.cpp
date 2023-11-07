@@ -50,7 +50,12 @@ enum
 	// VDG_ATTRIBUTE_VERTEX
 };
 
+GLuint gVao_cube;
+GLuint gVbo_cube_position;
+GLuint gVbo_cube_color;
+
 GLuint gVao_sphere;
+
 GLuint gVbo_sphere_normal;
 GLuint gVbo_sphere_element;
 GLuint gVbo_sphere_position;
@@ -341,6 +346,7 @@ int initialise(void)
 	void printGLinfo(void);
 	void uninitialise(void);
 	void SphereVaoVbo(void);
+	void CubeVaoVbo( GLfloat[], GLfloat[]);
 	GLchar *LoadShader(FILE *, char *);
 
 	// Variable Declarations
@@ -407,17 +413,7 @@ int initialise(void)
 
 	// vertex shader - check where to put this
 	const GLchar *vertexShaderSourceCode = LoadShader(vshaderFile, "src\\main\\vertexshader.vert");
-	// const GLchar *vertexShaderSourceCode =
-	// "#version 330 core\n" \
-	// "\n" \
-	// "in vec4 a_position;" \
-	// "uniform mat4 u_modelMatrix;" \
-	// "uniform mat4 u_viewMatrix;" \
-	// "uniform mat4 u_projectionMatrix;" \
-	// "void main(void)" \
-	// "{" \
-	// 	"gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * a_position;" \
-	// "}";
+
 	
 	GLuint vertexShaderObject = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShaderObject, 1, (const GLchar**)&vertexShaderSourceCode, NULL);
@@ -448,15 +444,7 @@ int initialise(void)
 	// fragment shader
 
 	const GLchar* fragmentShaderSourceCode = LoadShader(fshaderFile, "src\\main\\fragmentshader.frag");
-	// const GLchar* fragmentShaderSourceCode =
-	// "#version 330 core" \
-	// "\n" \
-	// "out vec4 FragColor;" \
-	// "void main(void)" \
-	// "{" \
-    // "FragColor = vec4(1.0, 1.0, 1.0, 1.0);" \
-	// "}";
-
+	
 
 	GLuint fragmentShaderObject = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShaderObject, 1, (const GLchar**)&fragmentShaderSourceCode, NULL);
@@ -529,39 +517,87 @@ int initialise(void)
 
 
 	SphereVaoVbo();
-	// vao and vbo related code
-	// // vao
-    // glGenVertexArrays(1, &gVao_sphere);
-    // glBindVertexArray(gVao_sphere);
+	
+	//Coordinates	
+	GLfloat cubeVertices[] = 
+	{
+			// top
+    	1.0f, 1.0f, -1.0f,
+    	-1.0f, 1.0f, -1.0f, 
+    	-1.0f, 1.0f, 1.0f,
+    	1.0f, 1.0f, 1.0f,
 
-    // // position vbo
-    // glGenBuffers(1, &gVbo_sphere_position);
-    // glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
+	  	// bottom
+        1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
 
-    // glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+		 // front
+        1.0f, 1.0f, 1.0f,
+       -1.0f, 1.0f, 1.0f,
+       -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
 
-    // glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+		// back
+        1.0f, 1.0f, -1.0f,
+       -1.0f, 1.0f, -1.0f,
+       -1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f,
 
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
+		 // right
+        1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,
 
-    // // normal vbo
-    // glGenBuffers(1, &gVbo_sphere_normal);
-    // glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
+		 // left
+    	-1.0f, 1.0f, 1.0f,
+    	-1.0f, 1.0f, -1.0f, 
+    	-1.0f, -1.0f, -1.0f, 
+    	-1.0f, -1.0f, 1.0f,
+	};
+	
+	GLfloat color[] = 
+	{
+			// top
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
 
-    // glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	  	// bottom
+        0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
 
-    // glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
+		 // front
+        0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
 
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
+		// back
+        0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
 
-    // // element vbo
-    // glGenBuffers(1, &gVbo_sphere_element);
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
-    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		 // right
+        0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
 
+		 // left
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22,
+    	0.61, 0.39, 0.22
+	};
+	
+	CubeVaoVbo(cubeVertices, color);
 
 	// Here starts openGL code
 
@@ -576,7 +612,7 @@ int initialise(void)
 	// loadGLtexture();
 	// Clear the screen using Blue Color
 
-	glClearColor(0.0f, 0.0f, 1.0f, 1.0f); // this function only tells the program what color to use to clear the screen. The actual clearing DOES NOT happen here
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // this function only tells the program what color to use to clear the screen. The actual clearing DOES NOT happen here
 
 	perspectiveProjectionMatrix = mat4::identity();
 
@@ -626,7 +662,7 @@ void resize(int width, int height)
 void display(void)
 {
 	void push(mat4);
-	mat4 pop();
+	//mat4 pop();
 	void drawSphere();
 	// Code
 
@@ -643,8 +679,9 @@ void display(void)
 
 	// drawSphere();
 
-	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
+	translationMatrix = vmath::translate(0.0f, 0.0f, -6.0f);
 	modelMatrix = translationMatrix;
+
 
 	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
 	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
@@ -655,14 +692,28 @@ void display(void)
 	// Provided You Already Had Done Matrices Related Task Up Till Here
 
     // *** bind vao ***
-    glBindVertexArray(gVao_sphere);
+    /*glBindVertexArray(gVao_sphere);
 
     // *** draw, either by glDrawTriangles() or glDrawArrays() or glDrawElements()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
     glDrawElements(GL_TRIANGLES, gNumElements, GL_UNSIGNED_SHORT, 0);
 
     // *** unbind vao ***
-    glBindVertexArray(0);
+    glBindVertexArray(0);*/
+	
+	// *** bind vao ***
+
+    glBindVertexArray(gVao_cube);
+	
+	glDrawArrays(GL_TRIANGLE_FAN, 0,4);
+	glDrawArrays(GL_TRIANGLE_FAN, 4,4);
+	glDrawArrays(GL_TRIANGLE_FAN, 8,4);
+	glDrawArrays(GL_TRIANGLE_FAN, 12,4);
+	glDrawArrays(GL_TRIANGLE_FAN, 16,4);
+	glDrawArrays(GL_TRIANGLE_FAN, 20,4);
+		
+	glBindVertexArray(0);
+
 
     // Do Usual Stuff Here Onwards
 
@@ -712,13 +763,40 @@ void SphereVaoVbo(void)
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
+	
 }
 
+void CubeVaoVbo(GLfloat position[], GLfloat color[]){
+	MessageBox(NULL, TEXT("Cube in."), TEXT("File I/O Error"), MB_OK);
+	glGenVertexArrays(1, &gVao_cube);
+	glBindVertexArray(gVao_cube);
+	
+	glGenBuffers(1, &gVbo_cube_position);
+	glBindBuffer(GL_ARRAY_BUFFER, gVbo_cube_position);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(position), position, GL_STATIC_DRAW);
+	glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+	glGenBuffers(1, &gVbo_cube_color);
+	glBindBuffer(GL_ARRAY_BUFFER, gVbo_cube_color);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(color), color, GL_STATIC_DRAW);
+	glVertexAttribPointer(AMC_ATTRIBUTE_COLOR, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(AMC_ATTRIBUTE_COLOR);
+	
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	
+	glBindVertexArray(0);
+MessageBox(NULL, TEXT("Cube out"), TEXT("File I/O Error"), MB_OK);
+}
 void drawSphere()
 {
 
 }
+
+//platform function
 
 
 void uninitialise(void)
