@@ -65,6 +65,12 @@ float sphere_normals[1146];
 float sphere_textures[764];
 unsigned short sphere_elements[2280];
 
+
+GLfloat LightDiffuse[] = {1.0f, 1.0f, 1.0f, 1.0f};
+GLfloat LightPosition[] = {0.0f, 0.0f, 2.0f, 1.0f};
+GLfloat MaterialDiffuse[] = {0.5f, 0.5f, 0.5f, 1.0f};
+
+
 int gNumVertices;
 int gNumElements;
 
@@ -72,6 +78,8 @@ GLuint texture_spheres;
 
 mat4 perspectiveProjectionMatrix;
 
+// sphere properties
+float sphereRoll = 0.0f;
 
 struct stack
 {
@@ -255,6 +263,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		case 27:
 			DestroyWindow(hwnd);
 			break;
+		case VK_RIGHT:
+			sphereRoll -= 1.0f;
+			if (sphereRoll <= -360.0f)
+			{
+				sphereRoll = 0.0f;
+			}
+			break;
+		case VK_LEFT:
+			sphereRoll += 1.0f;
+			if (sphereRoll >= 360.0f)
+			{
+				sphereRoll = 0.0f;
+			}
+			break;
 		default:
 			break;
 		}
@@ -271,6 +293,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	case WM_CHAR:
 		switch (wParam)
 		{
+		case 'a':
+			sphereRoll -= 1.0f;
+			if (sphereRoll <= -360.0f)
+			{
+				sphereRoll = 0.0f;
+			}
+			break;
+		case 'd':
+			sphereRoll += 1.0f;
+			if (sphereRoll >= 360.0f)
+			{
+				sphereRoll = 0.0f;
+			}
+			break;
 		case 'F':
 		case 'f':
 			ToggleFullScreen();
@@ -407,17 +443,6 @@ int initialise(void)
 
 	// vertex shader - check where to put this
 	const GLchar *vertexShaderSourceCode = LoadShader(vshaderFile, "src\\main\\vertexshader.vert");
-	// const GLchar *vertexShaderSourceCode =
-	// "#version 330 core\n" \
-	// "\n" \
-	// "in vec4 a_position;" \
-	// "uniform mat4 u_modelMatrix;" \
-	// "uniform mat4 u_viewMatrix;" \
-	// "uniform mat4 u_projectionMatrix;" \
-	// "void main(void)" \
-	// "{" \
-	// 	"gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * a_position;" \
-	// "}";
 	
 	GLuint vertexShaderObject = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShaderObject, 1, (const GLchar**)&vertexShaderSourceCode, NULL);
@@ -448,15 +473,6 @@ int initialise(void)
 	// fragment shader
 
 	const GLchar* fragmentShaderSourceCode = LoadShader(fshaderFile, "src\\main\\fragmentshader.frag");
-	// const GLchar* fragmentShaderSourceCode =
-	// "#version 330 core" \
-	// "\n" \
-	// "out vec4 FragColor;" \
-	// "void main(void)" \
-	// "{" \
-    // "FragColor = vec4(1.0, 1.0, 1.0, 1.0);" \
-	// "}";
-
 
 	GLuint fragmentShaderObject = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShaderObject, 1, (const GLchar**)&fragmentShaderSourceCode, NULL);
@@ -527,41 +543,7 @@ int initialise(void)
     gNumVertices = getNumberOfSphereVertices();
     gNumElements = getNumberOfSphereElements();
 
-
 	SphereVaoVbo();
-	// vao and vbo related code
-	// // vao
-    // glGenVertexArrays(1, &gVao_sphere);
-    // glBindVertexArray(gVao_sphere);
-
-    // // position vbo
-    // glGenBuffers(1, &gVbo_sphere_position);
-    // glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
-
-    // glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-    // glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
-
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // // normal vbo
-    // glGenBuffers(1, &gVbo_sphere_normal);
-    // glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
-    // glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
-
-    // glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-    // glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
-
-    // glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // // element vbo
-    // glGenBuffers(1, &gVbo_sphere_element);
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
-    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
-    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
 
 	// Here starts openGL code
 
@@ -576,7 +558,7 @@ int initialise(void)
 	// loadGLtexture();
 	// Clear the screen using Blue Color
 
-	glClearColor(0.0f, 0.0f, 1.0f, 1.0f); // this function only tells the program what color to use to clear the screen. The actual clearing DOES NOT happen here
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // this function only tells the program what color to use to clear the screen. The actual clearing DOES NOT happen here
 
 	perspectiveProjectionMatrix = mat4::identity();
 
@@ -640,30 +622,32 @@ void display(void)
 	mat4 modelMatrix = mat4::identity();
 	mat4 viewMatrix = mat4::identity();
 	// mat4 modelViewProjectionMatrix = mat4::identity();
+	mat4 rotationMatrix = mat4::identity();
 
 	// drawSphere();
 
 	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
 	modelMatrix = translationMatrix;
 
-	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
 	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
 	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
 	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
 	
-	
+	push(modelMatrix);
+
 	// Provided You Already Had Done Matrices Related Task Up Till Here
 
-    // *** bind vao ***
-    glBindVertexArray(gVao_sphere);
+	rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
+	modelMatrix = pop() * rotationMatrix;
+	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
 
-    // *** draw, either by glDrawTriangles() or glDrawArrays() or glDrawElements()
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
-    glDrawElements(GL_TRIANGLES, gNumElements, GL_UNSIGNED_SHORT, 0);
+	drawSphere();
 
-    // *** unbind vao ***
-    glBindVertexArray(0);
-
+	// push(modelMatrix);
     // Do Usual Stuff Here Onwards
 
 	// unuse the shader program object
@@ -717,8 +701,18 @@ void SphereVaoVbo(void)
 
 void drawSphere()
 {
+	    // *** bind vao ***
+    glBindVertexArray(gVao_sphere);
 
+    // *** draw, either by glDrawTriangles() or glDrawArrays() or glDrawElements()
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
+    glDrawElements(GL_TRIANGLES, gNumElements, GL_UNSIGNED_SHORT, 0);
+
+    // *** unbind vao ***
+    glBindVertexArray(0);
 }
+
+
 
 
 void uninitialise(void)
