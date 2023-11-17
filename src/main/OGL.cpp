@@ -681,6 +681,8 @@ void SphereVaoVbo(void)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+	glBindVertexArray(0);
+
 }
 
 void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 rotationMatrix)
