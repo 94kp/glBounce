@@ -8,9 +8,9 @@
 // OpenGL Header Files
 #include <GL/glew.h>	// This must be above GL.h
 #include <GL/gl.h>
-#include "..\lib\vmath.h"
-#include "..\lib\Sphere.h"
-using namespace vmath; // only works in cpp
+
+#include "..\lib\karan.hpp"
+// using namespace vmath; // only works in cpp
 
 
 #define WINWIDTH 800
@@ -55,6 +55,10 @@ GLuint gVbo_sphere_normal;
 GLuint gVbo_sphere_element;
 GLuint gVbo_sphere_position;
 GLuint gVbo_sphere_texture;
+
+GLuint gVao_cube;
+GLuint gVbo_cube_position;
+
 GLuint modelMatrixUniform;
 GLuint viewMatrixUniform;
 GLuint projectionMatrixUniform;
@@ -377,6 +381,7 @@ int initialise(void)
 	void printGLinfo(void);
 	void uninitialise(void);
 	void SphereVaoVbo(void);
+	void CubeVaoVbo(void);
 	GLchar *LoadShader(FILE *, char *);
 
 	// Variable Declarations
@@ -543,6 +548,7 @@ int initialise(void)
     gNumElements = getNumberOfSphereElements();
 
 	SphereVaoVbo();
+	CubeVaoVbo();
 
 	// Here starts openGL code
 
@@ -685,46 +691,60 @@ void SphereVaoVbo(void)
 
 }
 
-void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 rotationMatrix)
+void CubeVaoVbo(void)
 {
-	void push(mat4);
-	mat4 pop();
-	void drawSphere();
+	const GLfloat cubePosition[] =
+	{
+		// top
+    	1.0f, 1.0f, -1.0f,
+    	-1.0f, 1.0f, -1.0f, 
+    	-1.0f, 1.0f, 1.0f,
+    	1.0f, 1.0f, 1.0f,
 
-	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
-	modelMatrix = translationMatrix;
+	  	// bottom
+        1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
 
-	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
-	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
+		 // front
+        1.0f, 1.0f, 1.0f,
+       -1.0f, 1.0f, 1.0f,
+       -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
 
-	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
+		// back
+        -1.0f, 1.0f, -1.0f,
+       1.0f, 1.0f, -1.0f,
+       1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
 
-	push(modelMatrix);
+		 // right
+        1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,
 
-	// Provided You Already Had Done Matrices Related Task Up Till Here
+		 // left
+    	-1.0f, 1.0f, 1.0f,
+    	-1.0f, 1.0f, -1.0f,
+    	-1.0f, -1.0f, -1.0f,
+    	-1.0f, -1.0f, 1.0f,
+	};
 
-	rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
-	modelMatrix = pop() * rotationMatrix;
-	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
-	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
+	glGenVertexArrays(1, &gVao_cube);
+	glBindVertexArray(gVao_cube);
+	// vao_pyramid done here
 
-	drawSphere();
+	// vbo for position
+	glGenBuffers(1, &gVbo_cube_position);
+	glBindBuffer(GL_ARRAY_BUFFER, gVbo_cube_position);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cubePosition), cubePosition, GL_STATIC_DRAW);
+	glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
 
-}
-
-void drawSphere(void)
-{
-	    // *** bind vao ***
-    glBindVertexArray(gVao_sphere);
-
-    // *** draw, either by glDrawTriangles() or glDrawArrays() or glDrawElements()
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
-    glDrawElements(GL_TRIANGLES, gNumElements, GL_UNSIGNED_SHORT, 0);
-
-    // *** unbind vao ***
-    glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 void uninitialise(void)
