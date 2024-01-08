@@ -39,7 +39,8 @@ BOOL bDone = FALSE;
 int iRetVal = 0;
 
 // Programmamble pipeline related global variables
-GLuint shaderProgramObject;
+GLuint shaderProgramObject_sphere;
+GLuint shaderProgramObject_ground;
 enum
 {
 	AMC_ATTRIBUTE_POSITION = 0,
@@ -50,14 +51,22 @@ enum
 	// VDG_ATTRIBUTE_VERTEX
 };
 
+GLuint gVao_cube;
+GLuint gVbo_cube_position;
+
 GLuint gVao_sphere;
 GLuint gVbo_sphere_normal;
 GLuint gVbo_sphere_element;
 GLuint gVbo_sphere_position;
 GLuint gVbo_sphere_texture;
-GLuint modelMatrixUniform;
-GLuint viewMatrixUniform;
-GLuint projectionMatrixUniform;
+GLuint modelMatrixUniformSphere;
+GLuint viewMatrixUniformSphere;
+GLuint projectionMatrixUniformSphere;
+
+GLuint modelMatrixUniformGround;
+GLuint viewMatrixUniformGround;
+GLuint projectionMatrixUniformGround;
+
 GLuint texture2DSampler;
 
 float sphere_vertices[1146];
@@ -377,6 +386,13 @@ int initialise(void)
 	void printGLinfo(void);
 	void uninitialise(void);
 	void SphereVaoVbo(void);
+	void CubeVaoVbo(void);
+
+	GLuint compileFragmentShader(GLchar*);
+	GLuint compileVertexShader(GLchar*);
+	
+	GLuint createShaderProgramObject(GLuint, GLuint);
+	void getAllUniformLocations(GLuint, GLuint*, GLchar*, GLuint*, GLchar* ,GLuint*, GLchar*);
 	GLchar *LoadShader(FILE *, char *);
 
 	// Variable Declarations
@@ -441,101 +457,43 @@ int initialise(void)
 
 	// printGLinfo();
 
-	// vertex shader - check where to put this
-	const GLchar *vertexShaderSourceCode = LoadShader(vshaderFile, "src\\main\\vertexshader.vert");
-	
-	GLuint vertexShaderObject = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShaderObject, 1, (const GLchar**)&vertexShaderSourceCode, NULL);
-	glCompileShader(vertexShaderObject);
-
-	GLint status;
-	GLint infoLogLength;
-	char* log = NULL;
-
-	glGetShaderiv(vertexShaderObject, GL_COMPILE_STATUS, &status);
-	if (status == GL_FALSE)
-	{
-		glGetShaderiv(vertexShaderObject, GL_INFO_LOG_LENGTH, &infoLogLength);
-		if (infoLogLength > 0)
-		{
-			log = (char *)malloc(infoLogLength);
-			if (log != NULL)
-			{
-				GLsizei written;
-				glGetShaderInfoLog(vertexShaderObject, infoLogLength, &written, log);
-				fprintf(gpFile, "Vertex Shader Compilation Log: %s\n", log);
-				free(log);
-				uninitialise();
-			}
-		}
-	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// vertex shader for SPHERE
+	GLuint vertexShaderObject_sphere = compileVertexShader("src\\main\\vertexshader_sphere.vert");
 
 	// fragment shader
-
-	const GLchar* fragmentShaderSourceCode = LoadShader(fshaderFile, "src\\main\\fragmentshader.frag");
-
-	GLuint fragmentShaderObject = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShaderObject, 1, (const GLchar**)&fragmentShaderSourceCode, NULL);
-	glCompileShader(fragmentShaderObject);
-
-	// pre linked binding
-	
-	status = 0;
-	infoLogLength = 0;
-	log = NULL;
-
-	glGetShaderiv(fragmentShaderObject, GL_COMPILE_STATUS, &status);
-	if (status == GL_FALSE)
-	{
-		glGetShaderiv(fragmentShaderObject, GL_INFO_LOG_LENGTH, &infoLogLength);
-		if (infoLogLength > 0)
-		{
-			log = (char *)malloc(infoLogLength);
-			if (log != NULL)
-			{
-				GLsizei written;
-				glGetShaderInfoLog(fragmentShaderObject, infoLogLength, &written, log);
-				fprintf(gpFile, "Fragment Shader Compilation Log: %s\n", log);
-				free(log);
-				uninitialise();
-			}
-		}
-	}
+	GLuint fragmentShaderObject_sphere = compileFragmentShader("src\\main\\fragmentshader_sphere.frag");
 
 	// shader program object
-	shaderProgramObject = glCreateProgram();
-	glAttachShader(shaderProgramObject, vertexShaderObject);
-	glAttachShader(shaderProgramObject, fragmentShaderObject);
+	shaderProgramObject_sphere = createShaderProgramObject(vertexShaderObject_sphere, fragmentShaderObject_sphere);
+	
+	// Uniforms
+	// getAllUniformLocations(shaderProgramObject_sphere, &modelMatrixUniformSphere, "u_modelMatrix_sphere", &viewMatrixUniformSphere, "u_viewMatrix_sphere", &projectionMatrixUniformSphere, "u_projectionMatrix_sphere");
+	// fprintf(gpFile, "%d\t%d\t%d\n", modelMatrixUniformSphere, viewMatrixUniformSphere, projectionMatrixUniformSphere);
+	modelMatrixUniformSphere = glGetUniformLocation(shaderProgramObject_sphere, "u_modelMatrix_sphere");
+	viewMatrixUniformSphere = glGetUniformLocation(shaderProgramObject_sphere, "u_viewMatrix_sphere");
+	projectionMatrixUniformSphere = glGetUniformLocation(shaderProgramObject_sphere, "u_projectionMatrix_sphere");
+	fprintf(gpFile, "%d\t%d\t%d\n", modelMatrixUniformSphere, viewMatrixUniformSphere, projectionMatrixUniformSphere);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	glBindAttribLocation(shaderProgramObject, AMC_ATTRIBUTE_POSITION, "a_position");
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// vertex shader for GROUND
+	GLuint vertexShaderObject_ground = compileVertexShader("src\\main\\vertexshader_ground.vert");
 
-	glLinkProgram(shaderProgramObject);
+	// fragment shader
+	GLuint fragmentShaderObject_ground = compileFragmentShader("src\\main\\fragmentshader_ground.frag");
 
-	status = 0;
-	infoLogLength = 0;
-	log = NULL;
-
-	glGetProgramiv(shaderProgramObject, GL_LINK_STATUS, &status);
-	if (status == GL_FALSE)
-	{
-		glGetProgramiv(shaderProgramObject, GL_INFO_LOG_LENGTH, &infoLogLength);
-		if (infoLogLength > 0)
-		{
-			log = (char *)malloc(infoLogLength);
-			if (log != NULL)
-			{
-				GLsizei written;
-				glGetProgramInfoLog(shaderProgramObject, infoLogLength, &written, log);
-				fprintf(gpFile, "Shader Program Linking Log: %s\n", log);
-				free(log);
-				uninitialise();
-			}
-		}
-	}
-
-	modelMatrixUniform = glGetUniformLocation(shaderProgramObject, "u_modelMatrix");
-	viewMatrixUniform = glGetUniformLocation(shaderProgramObject, "u_viewMatrix");
-	projectionMatrixUniform = glGetUniformLocation(shaderProgramObject, "u_projectionMatrix");
+	// shader program object
+	shaderProgramObject_ground = createShaderProgramObject(vertexShaderObject_ground, fragmentShaderObject_ground);
+	
+	// Uniforms
+	// getAllUniformLocations(shaderProgramObject_ground, &modelMatrixUniformGround, "u_modelMatrix_ground", &viewMatrixUniformGround, "u_viewMatrix_ground", &projectionMatrixUniformGround, "u_projectionMatrix_ground");
+	// fprintf(gpFile, "%d\t%d\t%d\n", modelMatrixUniformGround, viewMatrixUniformGround, projectionMatrixUniformGround);
+	modelMatrixUniformGround = glGetUniformLocation(shaderProgramObject_ground, "u_modelMatrix_ground");
+	viewMatrixUniformGround = glGetUniformLocation(shaderProgramObject_ground, "u_viewMatrix_ground");
+	projectionMatrixUniformGround = glGetUniformLocation(shaderProgramObject_ground, "u_projectionMatrix_ground");
+	fprintf(gpFile, "%d\t%d\t%d\n", modelMatrixUniformGround, viewMatrixUniformGround, projectionMatrixUniformGround);
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// declaration of vertex data arrays
 	getSphereVertexData(sphere_vertices, sphere_normals, sphere_textures, sphere_elements);
@@ -543,6 +501,8 @@ int initialise(void)
     gNumElements = getNumberOfSphereElements();
 
 	SphereVaoVbo();
+
+	CubeVaoVbo();
 
 	// Here starts openGL code
 
@@ -556,7 +516,6 @@ int initialise(void)
 
 	// loadGLtexture();
 	// Clear the screen using Blue Color
-
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f); // this function only tells the program what color to use to clear the screen. The actual clearing DOES NOT happen here
 
 	perspectiveProjectionMatrix = mat4::identity();
@@ -614,8 +573,8 @@ void display(void)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Actual coloring and clearing happens here
 
-	// Use the shader program object
-	glUseProgram(shaderProgramObject);
+	// // Use the shader program object
+	// glUseProgram(shaderProgramObject);
 
 	// transformations
 	mat4 translationMatrix = mat4::identity();
@@ -636,7 +595,7 @@ void display(void)
     // Do Usual Stuff Here Onwards
 
 	// unuse the shader program object
-	glUseProgram(0);
+	// glUseProgram(0);
 	SwapBuffers(ghdc);
 
 }
@@ -644,87 +603,6 @@ void display(void)
 void update(void)
 {
 	// Code
-}
-
-////////////////////////////////////////////////// Object VAO/VBO Functions ////////////////////////////////////////////////////
-
-void SphereVaoVbo(void)
-{
-	glGenVertexArrays(1, &gVao_sphere);
-    glBindVertexArray(gVao_sphere);
-
-    // position vbo
-    glGenBuffers(1, &gVbo_sphere_position);
-    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-    glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // normal vbo
-    glGenBuffers(1, &gVbo_sphere_normal);
-    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-
-    glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    // element vbo
-    glGenBuffers(1, &gVbo_sphere_element);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	glBindVertexArray(0);
-
-}
-
-void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 rotationMatrix)
-{
-	void push(mat4);
-	mat4 pop();
-	void drawSphere();
-
-	translationMatrix = vmath::translate(0.0f, 0.0f, -3.0f);
-	modelMatrix = translationMatrix;
-
-	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
-	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
-
-	// modelViewProjectionMatrix = perspectiveProjectionMatrix * modelViewMatrix;
-
-	push(modelMatrix);
-
-	// Provided You Already Had Done Matrices Related Task Up Till Here
-
-	rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
-	modelMatrix = pop() * rotationMatrix;
-	glUniformMatrix4fv(modelMatrixUniform, 1, GL_FALSE, modelMatrix);
-	glUniformMatrix4fv(viewMatrixUniform, 1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(projectionMatrixUniform, 1, GL_FALSE, perspectiveProjectionMatrix);
-
-	drawSphere();
-
-}
-
-void drawSphere(void)
-{
-	    // *** bind vao ***
-    glBindVertexArray(gVao_sphere);
-
-    // *** draw, either by glDrawTriangles() or glDrawArrays() or glDrawElements()
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
-    glDrawElements(GL_TRIANGLES, gNumElements, GL_UNSIGNED_SHORT, 0);
-
-    // *** unbind vao ***
-    glBindVertexArray(0);
 }
 
 void uninitialise(void)
@@ -766,21 +644,21 @@ void uninitialise(void)
 	}
 
 	// shader uninitialisation
-	if (shaderProgramObject)
+	if (shaderProgramObject_sphere)
 	{
-		glUseProgram(shaderProgramObject);
+		glUseProgram(shaderProgramObject_sphere);
 		GLsizei numAttachedShaders;
-		glGetProgramiv(shaderProgramObject, GL_ATTACHED_SHADERS, &numAttachedShaders);
+		glGetProgramiv(shaderProgramObject_sphere, GL_ATTACHED_SHADERS, &numAttachedShaders);
 		GLuint *shaderObjects = NULL;
 
 		// allocate enough memory to this buffer according to the number of attached shaders and fill it with the attached shader objects
 		shaderObjects = (GLuint *)malloc(numAttachedShaders * sizeof(GLuint));
 
-		glGetAttachedShaders(shaderProgramObject, numAttachedShaders, &numAttachedShaders, shaderObjects);
+		glGetAttachedShaders(shaderProgramObject_sphere, numAttachedShaders, &numAttachedShaders, shaderObjects);
 
 		for (GLsizei i = 0; i < numAttachedShaders; i++)
 		{
-			glDetachShader(shaderProgramObject, shaderObjects[i]);
+			glDetachShader(shaderProgramObject_sphere, shaderObjects[i]);
 			glDeleteShader(shaderObjects[i]);
 			shaderObjects[i] = 0;
 		}
@@ -789,8 +667,35 @@ void uninitialise(void)
 		shaderObjects = NULL;
 
 		glUseProgram(0);
-		glDeleteProgram(shaderProgramObject);
-		shaderProgramObject = 0;
+		glDeleteProgram(shaderProgramObject_sphere);
+		shaderProgramObject_sphere = 0;
+	}
+
+	if (shaderProgramObject_ground)
+	{
+		glUseProgram(shaderProgramObject_ground);
+		GLsizei numAttachedShaders;
+		glGetProgramiv(shaderProgramObject_ground, GL_ATTACHED_SHADERS, &numAttachedShaders);
+		GLuint *shaderObjects = NULL;
+
+		// allocate enough memory to this buffer according to the number of attached shaders and fill it with the attached shader objects
+		shaderObjects = (GLuint *)malloc(numAttachedShaders * sizeof(GLuint));
+
+		glGetAttachedShaders(shaderProgramObject_ground, numAttachedShaders, &numAttachedShaders, shaderObjects);
+
+		for (GLsizei i = 0; i < numAttachedShaders; i++)
+		{
+			glDetachShader(shaderProgramObject_ground, shaderObjects[i]);
+			glDeleteShader(shaderObjects[i]);
+			shaderObjects[i] = 0;
+		}
+
+		free(shaderObjects);
+		shaderObjects = NULL;
+
+		glUseProgram(0);
+		glDeleteProgram(shaderProgramObject_ground);
+		shaderProgramObject_ground = 0;
 	}
 
 	if (wglGetCurrentContext() == ghrc)
@@ -821,6 +726,191 @@ void uninitialise(void)
 		gpFile = NULL;
 	}
 }
+
+
+////////////////////////////////////////////////// Drawing Functions ///////////////////////////////////////////////////////////
+
+void drawSphere(void)
+{
+	    // *** bind vao ***
+    glBindVertexArray(gVao_sphere);
+
+    // *** draw, either by glDrawTriangles() or glDrawArrays() or glDrawElements()
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
+    glDrawElements(GL_TRIANGLES, gNumElements, GL_UNSIGNED_SHORT, 0);
+
+    // *** unbind vao ***
+    glBindVertexArray(0);
+}
+
+void drawCube(void)
+{
+	
+	glBindVertexArray(gVao_cube);
+
+	// here there be dragons (drawing code)
+
+	// glDrawArrays(GL_TRIANGLES, 0, 3);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	glDrawArrays(GL_TRIANGLE_FAN, 4, 4);
+	glDrawArrays(GL_TRIANGLE_FAN, 8, 4);
+	glDrawArrays(GL_TRIANGLE_FAN, 12, 4);
+	glDrawArrays(GL_TRIANGLE_FAN, 16, 4);
+	glDrawArrays(GL_TRIANGLE_FAN, 20, 4);
+
+	glBindVertexArray(0);
+}
+
+void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 rotationMatrix)
+{
+	void push(mat4);
+	mat4 pop();
+	void drawSphere(void);
+	void drawCube(void);
+
+	// Use the shader program object
+	glUseProgram(shaderProgramObject_sphere);
+
+	translationMatrix = vmath::translate(0.0f, 0.0f, -10.0f);
+	modelMatrix = translationMatrix;
+
+	push(modelMatrix);
+
+	// Provided You Already Had Done Matrices Related Task Up Till Here
+
+	rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
+	modelMatrix = pop() * rotationMatrix;
+
+	glUniformMatrix4fv(modelMatrixUniformSphere, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniformSphere, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniformSphere, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	drawSphere();
+
+	glUseProgram(0);
+
+	// push(modelMatrix);
+
+	glUseProgram(shaderProgramObject_ground);
+
+	translationMatrix = vmath::translate(0.0f, -1.0f, -10.0f);
+	modelMatrix = translationMatrix;
+
+	glUniformMatrix4fv(modelMatrixUniformGround, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniformGround, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniformGround, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	push(modelMatrix);
+
+	mat4 scaleMatrix = vmath::scale(40.0f, 0.3f, 5.0f);
+
+	modelMatrix = pop() * scaleMatrix;
+
+	glUniformMatrix4fv(modelMatrixUniformGround, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniformGround, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniformGround, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	drawCube();
+
+	glUseProgram(0);
+}
+
+////////////////////////////////////////////////// Object VAO/VBO Functions ////////////////////////////////////////////////////
+
+void SphereVaoVbo(void)
+{
+	glGenVertexArrays(1, &gVao_sphere);
+    glBindVertexArray(gVao_sphere);
+
+    // position vbo
+    glGenBuffers(1, &gVbo_sphere_position);
+    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_position);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_vertices), sphere_vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // normal vbo
+    glGenBuffers(1, &gVbo_sphere_normal);
+    glBindBuffer(GL_ARRAY_BUFFER, gVbo_sphere_normal);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(sphere_normals), sphere_normals, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(AMC_ATTRIBUTE_NORMAL, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+
+    glEnableVertexAttribArray(AMC_ATTRIBUTE_NORMAL);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // element vbo
+    glGenBuffers(1, &gVbo_sphere_element);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gVbo_sphere_element);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(sphere_elements), sphere_elements, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+	glBindVertexArray(0);
+
+}
+
+void CubeVaoVbo(void)
+{
+	const GLfloat cubePosition[] =
+	{
+		// top
+    	1.0f, 1.0f, -1.0f,
+    	-1.0f, 1.0f, -1.0f, 
+    	-1.0f, 1.0f, 1.0f,
+    	1.0f, 1.0f, 1.0f,
+
+	  	// bottom
+        1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f, -1.0f,
+       -1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f,  1.0f,
+
+		 // front
+        1.0f, 1.0f, 1.0f,
+       -1.0f, 1.0f, 1.0f,
+       -1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+
+		// back
+        -1.0f, 1.0f, -1.0f,
+       1.0f, 1.0f, -1.0f,
+       1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,
+
+		 // right
+        1.0f, 1.0f, -1.0f,
+        1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,
+
+		 // left
+    	-1.0f, 1.0f, 1.0f,
+    	-1.0f, 1.0f, -1.0f,
+    	-1.0f, -1.0f, -1.0f,
+    	-1.0f, -1.0f, 1.0f,
+	};
+
+	glGenVertexArrays(1, &gVao_cube);
+	glBindVertexArray(gVao_cube);
+	// vao_pyramid done here
+
+	// vbo for position
+	glGenBuffers(1, &gVbo_cube_position);
+	glBindBuffer(GL_ARRAY_BUFFER, gVbo_cube_position);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cubePosition), cubePosition, GL_STATIC_DRAW);
+	glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+}
+
+////////////////////////////////////////////////// Other "utility" functions ///////////////////////////////////////////////////
 
 BOOL loadGLtexture(GLuint *texture, TCHAR imageResourceID[])
 {
@@ -903,7 +993,124 @@ GLchar *LoadShader(FILE *shaderFile, char *shaderFileName)
     
 }
 
-// stack related functions
+GLuint compileVertexShader(GLchar* path)
+{
+	// code
+	const GLchar *vertexShaderSourceCode = LoadShader(vshaderFile, path);
+	
+	GLuint vertexShaderObject = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShaderObject, 1, (const GLchar**)&vertexShaderSourceCode, NULL);
+	glCompileShader(vertexShaderObject);
+
+	GLint status;
+	GLint infoLogLength;
+	char* log = NULL;
+
+	glGetShaderiv(vertexShaderObject, GL_COMPILE_STATUS, &status);
+	if (status == GL_FALSE)
+	{
+		glGetShaderiv(vertexShaderObject, GL_INFO_LOG_LENGTH, &infoLogLength);
+		if (infoLogLength > 0)
+		{
+			log = (char *)malloc(infoLogLength);
+			if (log != NULL)
+			{
+				GLsizei written;
+				glGetShaderInfoLog(vertexShaderObject, infoLogLength, &written, log);
+				fprintf(gpFile, "Vertex Shader Compilation Log: %s\n", log);
+				free(log);
+				uninitialise();
+			}
+		}
+	}
+
+	return vertexShaderObject;
+
+}
+
+GLuint compileFragmentShader(GLchar* path)
+{
+	// code
+
+	const GLchar* fragmentShaderSourceCode = LoadShader(fshaderFile, path);
+
+	GLuint fragmentShaderObject = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShaderObject, 1, (const GLchar**)&fragmentShaderSourceCode, NULL);
+	glCompileShader(fragmentShaderObject);
+
+	// pre linked binding
+	
+	GLint status;
+	GLint infoLogLength;
+	char* log = NULL;
+
+	glGetShaderiv(fragmentShaderObject, GL_COMPILE_STATUS, &status);
+	if (status == GL_FALSE)
+	{
+		glGetShaderiv(fragmentShaderObject, GL_INFO_LOG_LENGTH, &infoLogLength);
+		if (infoLogLength > 0)
+		{
+			log = (char *)malloc(infoLogLength);
+			if (log != NULL)
+			{
+				GLsizei written;
+				glGetShaderInfoLog(fragmentShaderObject, infoLogLength, &written, log);
+				fprintf(gpFile, "Fragment Shader Compilation Log: %s\n", log);
+				free(log);
+				uninitialise();
+			}
+		}
+	}
+
+	return fragmentShaderObject;
+}
+
+GLuint createShaderProgramObject(GLuint vertexShaderObject, GLuint fragmentShaderObject)
+{
+	// code
+
+	GLuint shaderProgramObject = glCreateProgram();
+	glAttachShader(shaderProgramObject, vertexShaderObject);
+	glAttachShader(shaderProgramObject, fragmentShaderObject);
+
+	glBindAttribLocation(shaderProgramObject, AMC_ATTRIBUTE_POSITION, "a_position");
+
+	glLinkProgram(shaderProgramObject);
+
+	GLint status;
+	GLint infoLogLength;
+	char* log = NULL;
+
+	glGetProgramiv(shaderProgramObject, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE)
+	{
+		glGetProgramiv(shaderProgramObject, GL_INFO_LOG_LENGTH, &infoLogLength);
+		if (infoLogLength > 0)
+		{
+			log = (char *)malloc(infoLogLength);
+			if (log != NULL)
+			{
+				GLsizei written;
+				glGetProgramInfoLog(shaderProgramObject, infoLogLength, &written, log);
+				fprintf(gpFile, "Shader Program Linking Log: %s\n", log);
+				free(log);
+				uninitialise();
+			}
+		}
+	}
+
+	return shaderProgramObject;
+
+}
+
+void getAllUniformLocations(GLuint shaderProgramObject, GLuint* modelMatrixUniform, GLchar* modelMatrixUniformName, GLuint* viewMatrixUniform, GLchar* viewMatrixUniformName, GLuint* projectionMatrixUniform, GLchar* projectionMatrixUniformName)
+{
+	// code
+}
+
+
+
+////////////////////////////////////////////////// stack related functions /////////////////////////////////////////////////////////
 
 void push(mat4 mostRecentMatrix)
 {   
