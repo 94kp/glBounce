@@ -89,6 +89,16 @@ mat4 perspectiveProjectionMatrix;
 
 // sphere properties
 float sphereRoll = 0.0f;
+float sphereMoveX = 0.0f;
+float sphereMoveY = 0.0f;
+int sphereMoveDirection = 0;
+
+vec3 eyeVector = vec3(0.0f, 0.0f, 4.0f);
+vec3 centerVector = vec3(0.0f, 0.0f, -1.0f);
+vec3 upVector = vec3(0.0f, 1.0f, 0.0);
+
+const float cameraSpeed = 1.03f;
+const float sphereMoveSpeed = 0.5f;
 
 struct stack
 {
@@ -273,17 +283,32 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 			DestroyWindow(hwnd);
 			break;
 		case VK_RIGHT:
+			sphereMoveDirection = -1;
+			eyeVector += vmath::normalize(vmath::cross(centerVector, upVector)) * cameraSpeed;
 			sphereRoll -= 1.0f;
+			sphereMoveX += 1.03f;
 			if (sphereRoll <= -360.0f)
 			{
 				sphereRoll = 0.0f;
 			}
 			break;
 		case VK_LEFT:
+			sphereMoveDirection = 1;
+			eyeVector -= vmath::normalize(vmath::cross(centerVector, upVector)) * cameraSpeed;
 			sphereRoll += 1.0f;
+			sphereMoveX -= 1.03f;
 			if (sphereRoll >= 360.0f)
 			{
 				sphereRoll = 0.0f;
+			}
+			break;
+		case VK_UP:
+			sphereMoveDirection = 2;
+			sphereRoll = sphereRoll;
+			sphereMoveY += 0.05f;
+			if (sphereMoveY == 1.0f)
+			{
+				sphereMoveY -= 0.05f;
 			}
 			break;
 		default:
@@ -583,6 +608,12 @@ void display(void)
 	// mat4 modelViewProjectionMatrix = mat4::identity();
 	mat4 rotationMatrix = mat4::identity();
 
+	// vec3 eyeVector = vec3(0.0f, 0.0f, 4.0f);
+	// vec3 centerVector = vec3(0.0f, 0.0f, -1.0f);
+	// vec3 upVector = vec3(0.0f, 1.0f, 0.0);
+	
+	viewMatrix = vmath::lookat(eyeVector, eyeVector + centerVector, upVector);
+
 	// drawSphere();
 
 	push(modelMatrix);
@@ -771,7 +802,7 @@ void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 
 	// Use the shader program object
 	glUseProgram(shaderProgramObject_sphere);
 
-	translationMatrix = vmath::translate(0.0f, 0.0f, -10.0f);
+	translationMatrix = vmath::translate(sphereMoveX, 0.0f, -10.0f);
 	modelMatrix = translationMatrix;
 
 	push(modelMatrix);
