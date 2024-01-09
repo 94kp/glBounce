@@ -17,6 +17,9 @@ using namespace vmath; // only works in cpp
 #define WINHEIGHT 600
 #define MAX_STACK_SIZE 32
 
+#define TEXTURE_PRESENT 1
+#define TEXTURE_NOT_PRESENT 0
+
 // OpenGL Libraries
 #pragma comment(lib, "glew32.lib")
 #pragma comment(lib, "openGL32.lib")
@@ -53,6 +56,7 @@ enum
 
 GLuint gVao_cube;
 GLuint gVbo_cube_position;
+GLuint vbo_cube_texcoord;
 
 GLuint gVao_sphere;
 GLuint gVbo_sphere_normal;
@@ -66,8 +70,7 @@ GLuint projectionMatrixUniformSphere;
 GLuint modelMatrixUniformGround;
 GLuint viewMatrixUniformGround;
 GLuint projectionMatrixUniformGround;
-
-GLuint texture2DSampler;
+GLuint textureSamplerUniformGround;
 
 float sphere_vertices[1146];
 float sphere_normals[1146];
@@ -84,6 +87,7 @@ int gNumVertices;
 int gNumElements;
 
 GLuint texture_spheres;
+GLuint texture_ground;
 
 mat4 perspectiveProjectionMatrix;
 
@@ -92,6 +96,8 @@ float sphereRoll = 0.0f;
 float sphereMoveX = 0.0f;
 float sphereMoveY = 0.0f;
 int sphereMoveDirection = 0;
+int sphereJump = 0;
+int sphereAtTop = 0;
 
 vec3 eyeVector = vec3(0.0f, 0.0f, 4.0f);
 vec3 centerVector = vec3(0.0f, 0.0f, -1.0f);
@@ -214,7 +220,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 
 	else
 	{
-		fprintf(gpFile, "Success");
+		fprintf(gpFile, "Initialisation Succesful\n");
 	}
 
 	// Show Window
@@ -305,11 +311,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 		case VK_UP:
 			sphereMoveDirection = 2;
 			sphereRoll = sphereRoll;
-			sphereMoveY += 0.05f;
-			if (sphereMoveY == 1.0f)
-			{
-				sphereMoveY -= 0.05f;
-			}
+			sphereJump = sphereJump ? 0 : 1;
 			break;
 		default:
 			break;
@@ -412,13 +414,12 @@ int initialise(void)
 	void uninitialise(void);
 	void SphereVaoVbo(void);
 	void CubeVaoVbo(void);
-
 	GLuint compileFragmentShader(GLchar*);
 	GLuint compileVertexShader(GLchar*);
-	
-	GLuint createShaderProgramObject(GLuint, GLuint);
+	GLuint createShaderProgramObject(int, GLuint, GLuint);
 	void getAllUniformLocations(GLuint, GLuint*, GLchar*, GLuint*, GLchar* ,GLuint*, GLchar*);
 	GLchar *LoadShader(FILE *, char *);
+	BOOL loadGLtexture(GLuint *, TCHAR[]);
 
 	// Variable Declarations
 
@@ -490,7 +491,7 @@ int initialise(void)
 	GLuint fragmentShaderObject_sphere = compileFragmentShader("src\\main\\fragmentshader_sphere.frag");
 
 	// shader program object
-	shaderProgramObject_sphere = createShaderProgramObject(vertexShaderObject_sphere, fragmentShaderObject_sphere);
+	shaderProgramObject_sphere = createShaderProgramObject(TEXTURE_NOT_PRESENT, vertexShaderObject_sphere, fragmentShaderObject_sphere);
 	
 	// Uniforms
 	// getAllUniformLocations(shaderProgramObject_sphere, &modelMatrixUniformSphere, "u_modelMatrix_sphere", &viewMatrixUniformSphere, "u_viewMatrix_sphere", &projectionMatrixUniformSphere, "u_projectionMatrix_sphere");
@@ -509,7 +510,7 @@ int initialise(void)
 	GLuint fragmentShaderObject_ground = compileFragmentShader("src\\main\\fragmentshader_ground.frag");
 
 	// shader program object
-	shaderProgramObject_ground = createShaderProgramObject(vertexShaderObject_ground, fragmentShaderObject_ground);
+	shaderProgramObject_ground = createShaderProgramObject(TEXTURE_PRESENT, vertexShaderObject_ground, fragmentShaderObject_ground);
 	
 	// Uniforms
 	// getAllUniformLocations(shaderProgramObject_ground, &modelMatrixUniformGround, "u_modelMatrix_ground", &viewMatrixUniformGround, "u_viewMatrix_ground", &projectionMatrixUniformGround, "u_projectionMatrix_ground");
@@ -517,7 +518,8 @@ int initialise(void)
 	modelMatrixUniformGround = glGetUniformLocation(shaderProgramObject_ground, "u_modelMatrix_ground");
 	viewMatrixUniformGround = glGetUniformLocation(shaderProgramObject_ground, "u_viewMatrix_ground");
 	projectionMatrixUniformGround = glGetUniformLocation(shaderProgramObject_ground, "u_projectionMatrix_ground");
-	fprintf(gpFile, "%d\t%d\t%d\n", modelMatrixUniformGround, viewMatrixUniformGround, projectionMatrixUniformGround);
+	textureSamplerUniformGround = glGetUniformLocation(shaderProgramObject_ground, "u_textureSampler");
+	fprintf(gpFile, "%d\t%d\t%d\n", textureSamplerUniformGround, viewMatrixUniformGround, projectionMatrixUniformGround);
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	// declaration of vertex data arrays
@@ -528,6 +530,20 @@ int initialise(void)
 	SphereVaoVbo();
 
 	CubeVaoVbo();
+
+	if (loadGLtexture(&texture_ground, MAKEINTRESOURCE(IDBITMAP_GROUND))==FALSE)
+	{
+		fprintf(gpFile, "error loading ground texture\n");
+
+		return -6;
+	}
+	else
+	{
+		fprintf(gpFile, "Ground texture loaded\n");
+	}
+
+	glEnable(GL_TEXTURE_2D);
+
 
 	// Here starts openGL code
 
@@ -758,7 +774,6 @@ void uninitialise(void)
 	}
 }
 
-
 ////////////////////////////////////////////////// Drawing Functions ///////////////////////////////////////////////////////////
 
 void drawSphere(void)
@@ -776,7 +791,6 @@ void drawSphere(void)
 
 void drawCube(void)
 {
-	
 	glBindVertexArray(gVao_cube);
 
 	// here there be dragons (drawing code)
@@ -802,21 +816,97 @@ void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 
 	// Use the shader program object
 	glUseProgram(shaderProgramObject_sphere);
 
-	translationMatrix = vmath::translate(sphereMoveX, 0.0f, -10.0f);
-	modelMatrix = translationMatrix;
+	if (sphereJump == 0)
+	{
+		if (sphereMoveY >= 0.0f)
+		{
+			sphereMoveY -= 0.01f;
+		}
+		translationMatrix = vmath::translate(sphereMoveX, sphereMoveY, -6.0f);
+		modelMatrix = translationMatrix;
 
-	push(modelMatrix);
+		push(modelMatrix);
 
-	// Provided You Already Had Done Matrices Related Task Up Till Here
+		// Provided You Already Had Done Matrices Related Task Up Till Here
 
-	rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
-	modelMatrix = pop() * rotationMatrix;
+		rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
+		modelMatrix = pop() * rotationMatrix;
 
-	glUniformMatrix4fv(modelMatrixUniformSphere, 1, GL_FALSE, modelMatrix);
-	glUniformMatrix4fv(viewMatrixUniformSphere, 1, GL_FALSE, viewMatrix);
-	glUniformMatrix4fv(projectionMatrixUniformSphere, 1, GL_FALSE, perspectiveProjectionMatrix);
+		glUniformMatrix4fv(modelMatrixUniformSphere, 1, GL_FALSE, modelMatrix);
+		glUniformMatrix4fv(viewMatrixUniformSphere, 1, GL_FALSE, viewMatrix);
+		glUniformMatrix4fv(projectionMatrixUniformSphere, 1, GL_FALSE, perspectiveProjectionMatrix);
 
-	drawSphere();
+		drawSphere();
+
+	}
+	else
+	{
+		if (!sphereAtTop)
+		{
+			sphereMoveY += 0.005f;
+			if (sphereMoveY >= 2.0f)
+			{
+				sphereAtTop = 1;
+			}
+			translationMatrix = vmath::translate(sphereMoveX, sphereMoveY, -6.0f);
+			modelMatrix = translationMatrix;
+
+			push(modelMatrix);
+
+			// Provided You Already Had Done Matrices Related Task Up Till Here
+
+			rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
+			modelMatrix = pop() * rotationMatrix;
+
+			glUniformMatrix4fv(modelMatrixUniformSphere, 1, GL_FALSE, modelMatrix);
+			glUniformMatrix4fv(viewMatrixUniformSphere, 1, GL_FALSE, viewMatrix);
+			glUniformMatrix4fv(projectionMatrixUniformSphere, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+			drawSphere();
+		}
+		else
+		{
+			sphereMoveY -= 0.001f;
+			if (sphereMoveY <= 0.0f)
+			{
+				sphereMoveY = 0;
+				sphereAtTop = 0;
+				sphereJump = 0;
+			}
+			translationMatrix = vmath::translate(sphereMoveX, sphereMoveY, -6.0f);
+			modelMatrix = translationMatrix;
+
+			push(modelMatrix);
+
+			// Provided You Already Had Done Matrices Related Task Up Till Here
+
+			rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
+			modelMatrix = pop() * rotationMatrix;
+
+			glUniformMatrix4fv(modelMatrixUniformSphere, 1, GL_FALSE, modelMatrix);
+			glUniformMatrix4fv(viewMatrixUniformSphere, 1, GL_FALSE, viewMatrix);
+			glUniformMatrix4fv(projectionMatrixUniformSphere, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+			drawSphere();
+		}
+		
+
+	}
+	// translationMatrix = vmath::translate(sphereMoveX, sphereMoveY, -6.0f);
+	// modelMatrix = translationMatrix;
+
+	// push(modelMatrix);
+
+	// // Provided You Already Had Done Matrices Related Task Up Till Here
+
+	// rotationMatrix = vmath::rotate((GLfloat)sphereRoll, 0.0f, 0.0f, 1.0f);
+	// modelMatrix = pop() * rotationMatrix;
+
+	// glUniformMatrix4fv(modelMatrixUniformSphere, 1, GL_FALSE, modelMatrix);
+	// glUniformMatrix4fv(viewMatrixUniformSphere, 1, GL_FALSE, viewMatrix);
+	// glUniformMatrix4fv(projectionMatrixUniformSphere, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	// drawSphere();
 
 	glUseProgram(0);
 
@@ -832,7 +922,7 @@ void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 
 	glUniformMatrix4fv(projectionMatrixUniformGround, 1, GL_FALSE, perspectiveProjectionMatrix);
 
 	push(modelMatrix);
-
+	// mat4 scaleMatrix = mat4::identity();
 	mat4 scaleMatrix = vmath::scale(40.0f, 0.3f, 5.0f);
 
 	modelMatrix = pop() * scaleMatrix;
@@ -840,6 +930,37 @@ void karan_code(mat4 translationMatrix, mat4 modelMatrix, mat4 viewMatrix, mat4 
 	glUniformMatrix4fv(modelMatrixUniformGround, 1, GL_FALSE, modelMatrix);
 	glUniformMatrix4fv(viewMatrixUniformGround, 1, GL_FALSE, viewMatrix);
 	glUniformMatrix4fv(projectionMatrixUniformGround, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture_ground);
+	glUniform1i(textureSamplerUniformGround, 0);
+
+	drawCube();
+
+	glUseProgram(0);
+
+	glUseProgram(shaderProgramObject_ground);
+
+	translationMatrix = vmath::translate(90.0f, -1.0f, -10.0f);
+	modelMatrix = translationMatrix;
+
+	glUniformMatrix4fv(modelMatrixUniformGround, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniformGround, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniformGround, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	push(modelMatrix);
+
+	scaleMatrix = vmath::scale(40.0f, 0.3f, 5.0f);
+
+	modelMatrix = pop() * scaleMatrix;
+
+	glUniformMatrix4fv(modelMatrixUniformGround, 1, GL_FALSE, modelMatrix);
+	glUniformMatrix4fv(viewMatrixUniformGround, 1, GL_FALSE, viewMatrix);
+	glUniformMatrix4fv(projectionMatrixUniformGround, 1, GL_FALSE, perspectiveProjectionMatrix);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture_ground);
+	glUniform1i(textureSamplerUniformGround, 0);
 
 	drawCube();
 
@@ -926,6 +1047,40 @@ void CubeVaoVbo(void)
     	-1.0f, -1.0f, 1.0f,
 	};
 
+	const GLfloat cubeTexcoords[] =
+	{
+		0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f,
+
+        0.0f, 0.0f,
+        1.0f, 0.0f,
+        1.0f, 1.0f,
+        0.0f, 1.0f
+	};
+
+
 	glGenVertexArrays(1, &gVao_cube);
 	glBindVertexArray(gVao_cube);
 	// vao_pyramid done here
@@ -936,6 +1091,14 @@ void CubeVaoVbo(void)
 	glBufferData(GL_ARRAY_BUFFER, sizeof(cubePosition), cubePosition, GL_STATIC_DRAW);
 	glVertexAttribPointer(AMC_ATTRIBUTE_POSITION, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 	glEnableVertexAttribArray(AMC_ATTRIBUTE_POSITION);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glGenBuffers(1, &vbo_cube_texcoord);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_cube_texcoord);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeTexcoords), cubeTexcoords, GL_STATIC_DRAW);
+	glVertexAttribPointer(AMC_ATTRIBUTE_TEXTURE0, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+	glEnableVertexAttribArray(AMC_ATTRIBUTE_TEXTURE0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
@@ -1096,7 +1259,7 @@ GLuint compileFragmentShader(GLchar* path)
 	return fragmentShaderObject;
 }
 
-GLuint createShaderProgramObject(GLuint vertexShaderObject, GLuint fragmentShaderObject)
+GLuint createShaderProgramObject(int textureUsed, GLuint vertexShaderObject, GLuint fragmentShaderObject)
 {
 	// code
 
@@ -1105,6 +1268,9 @@ GLuint createShaderProgramObject(GLuint vertexShaderObject, GLuint fragmentShade
 	glAttachShader(shaderProgramObject, fragmentShaderObject);
 
 	glBindAttribLocation(shaderProgramObject, AMC_ATTRIBUTE_POSITION, "a_position");
+
+	if (textureUsed == 1)
+		glBindAttribLocation(shaderProgramObject, AMC_ATTRIBUTE_TEXTURE0, "a_texcoord");
 
 	glLinkProgram(shaderProgramObject);
 

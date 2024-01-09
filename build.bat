@@ -12,3 +12,4 @@ link.exe /OUT:build\outputs\OGL.exe build\intermediates\OGL.obj build\intermedia
 
 build\outputs\OGL.exe
 
+type Log.txt

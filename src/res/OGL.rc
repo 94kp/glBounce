@@ -1,2 +1,3 @@
 #include "..\lib\OGL.h"
 MYICON ICON "..\\res\\images\\kp.ico"
+IDBITMAP_GROUND BITMAP "..\\res\\images\\grass.bmp"

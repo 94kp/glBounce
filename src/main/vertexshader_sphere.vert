@@ -1,4 +1,4 @@
-#version 330 core
+#version 450 core
 
 in vec4 a_position;
 uniform mat4 u_modelMatrix_sphere;
